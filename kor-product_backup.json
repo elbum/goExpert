@@ -1,0 +1,23 @@
+{
+    "12451251": {
+        "ProdNm": "test",
+        "RgstDT": "2999-12-31",
+        "RgstTime": "12:40:25",
+        "ClickCnt": 1256,
+        "NotiYN": true
+    },
+    "12451253": {
+        "ProdNm": "test",
+        "RgstDT": "2999-12-31",
+        "RgstTime": "12:40:25",
+        "ClickCnt": 1256,
+        "NotiYN": true
+    },
+    "12451255": {
+        "ProdNm": "test",
+        "RgstDT": "2999-12-31",
+        "RgstTime": "12:40:25",
+        "ClickCnt": 1256,
+        "NotiYN": true
+    }
+}
