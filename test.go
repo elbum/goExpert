@@ -18,6 +18,6 @@ func main() {
 
 	bum := map[string]string{"name": "bum", "type": "man"}
 
-	bumslice = []map
+	// bumslice = []map
 	fmt.Println(bum)
 }

@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -90,10 +91,10 @@ func (p *products) SetCpm() {
 }
 
 // 알람 대상 판단
-func (p *products) JudgeAlarm() {
+func (p *products) JudgeAlarm(argCpm float32) {
 	fmt.Println("Judge Alarm called")
 	for k, v := range *p {
-		if v.ClickCnt > 500 && v.Cpm > 50 {
+		if v.ClickCnt > 500 && v.Cpm > argCpm {
 			v.NotiYN = true
 		}
 		(*p)[k] = v
@@ -101,7 +102,7 @@ func (p *products) JudgeAlarm() {
 }
 
 // 크롤링 메인 프로세스
-func getPrices(url string, fn string, c chan bool) {
+func getPrices(url string, fn string, argCpm float32, c chan bool) {
 
 	// Read previous productInfo jsonfile
 	b, err := ioutil.ReadFile(fn)
@@ -111,9 +112,10 @@ func getPrices(url string, fn string, c chan bool) {
 		c <- false
 	}
 	fmt.Println(string(b), len(b))
+
 	if len(b) < 5 {
 		fmt.Println("Null file read")
-		panic("errrrrrr")
+		// panic("errrrrrr")
 	}
 
 	js := new(products) // new 로 만들면 포인터
@@ -206,7 +208,7 @@ func getPrices(url string, fn string, c chan bool) {
 			newData[idx].SetCpm()
 
 			// 알람 대상인지 판단.
-			newData[idx].JudgeAlarm()
+			newData[idx].JudgeAlarm(argCpm)
 
 			fmt.Println(newData[idx])
 			fmt.Println("index=", i, "no=", (i-25)/9+1, "       item=", item)
@@ -218,8 +220,14 @@ func getPrices(url string, fn string, c chan bool) {
 	// 기존 json 에 집어넣기 위해,
 	// array map 을 map 으로 변환해야 함.
 
+	// Check newData
+	fmt.Println(newData)
+	fmt.Println("Check newData :", len(newData))
+	// Check prevData
+	// fmt.Println(newData)
+	// fmt.Println("Check prevData :", len(p))
 	for i, p := range newData {
-
+		fmt.Println("check ip =", i, p)
 		for k, v := range p {
 			fmt.Println("NewData [", i, "] = ", k, v)
 			if _, ok := (*js)[k]; ok {
@@ -240,18 +248,20 @@ func getPrices(url string, fn string, c chan bool) {
 
 			} else {
 				fmt.Println("Newdata")
+				(*js)[k] = v
 
 				// 새로운 데이터인데 알람을 보내지 않았다면 알람전송
 				if v.NotiYN == true {
 					// 알람처리
 					teleSend(url, k, v)
 				}
-				(*js)[k] = v
 			}
 
 		}
 	}
-
+	// Check newData
+	fmt.Println(js)
+	fmt.Println("Check newData :", len(*js))
 	// Case3. Bytes -> write File
 	marshalbytes, _ := json.Marshal(js)
 
@@ -266,39 +276,93 @@ func getPrices(url string, fn string, c chan bool) {
 
 // Scrape PPomppu Main Page
 func main() {
+	var Cpm float32
+
+	// argument handle
+	args := os.Args[1:]
+	if len(args) > 0 {
+		arg1, err := strconv.ParseFloat(args[1], 32)
+		Cpm = float32(arg1)
+		checkErr(err)
+	} else {
+		Cpm = 150.0
+	}
+	fmt.Println("CPM hurdle = ", Cpm)
+
+	// Check OS
+	os := runtime.GOOS
+	switch os {
+	case "windows":
+		fmt.Println("Windows")
+	case "darwin":
+		fmt.Println("MAC operating system")
+	case "linux":
+		fmt.Println("Linux")
+	default:
+		fmt.Printf("%s.\n", os)
+	}
+
 	// Goroutine Channel
 	c := make(chan bool)
 
-	// 뽐게 핫딜 프로세싱
+	// 뽐게 핫딜 URL
 	var ppomURL string = "http://www.ppomppu.co.kr/zboard/zboard.php?id=ppomppu"
-	go getPrices(ppomURL, "kor-product.json", c)
-	// go getPrices(ppomURL, "/docker/goapps/kor-product.json", c) // for docker
-
-	fmt.Println("Korea Deal Result = ", <-c)
-
-	// 해외 핫딜 프로세싱
+	// 해외 핫딜 URL
 	var overseaURL string = "http://www.ppomppu.co.kr/zboard/zboard.php?id=ppomppu4"
-	go getPrices(overseaURL, "oversea-product.json", c)
-	// go getPrices(overseaURL, "/docker/goapps/oversea-product.json", c) // for docker
-	fmt.Println("Oversea Deal Result = ", <-c)
 
-	// 뽐게 특정상품 검출
+	switch os {
+	case "windows":
+		fmt.Println("Windows")
+		go getPrices(ppomURL, "kor-product.json", Cpm, c)
+		go getPrices(overseaURL, "oversea-product.json", Cpm, c)
+	case "darwin":
+		fmt.Println("MAC operating system")
+		go getPrices(ppomURL, "kor-product.json", Cpm, c)
+		go getPrices(overseaURL, "oversea-product.json", Cpm, c)
+	case "linux":
+		fmt.Println("Linux")
+		go getPrices(ppomURL, "/docker/goapps/kor-product.json", Cpm, c)        // for docker
+		go getPrices(overseaURL, "/docker/goapps/oversea-product.json", Cpm, c) // for docker
+	default:
+		fmt.Printf("%s.\n", os)
+	}
 
-	// 해외 특정상품 검출
+	fmt.Println("Result = ", <-c)
+	// fmt.Println("Result = ", <-c)
+
+	// 뽐게 특정상품 검출 =>later
+
+	// 해외 특정상품 검출 =>later
 
 }
 
 func teleSend(url string, id string, v ProductInfo) {
-	// Read Tele info jsonfile
-	// b, err := ioutil.ReadFile("/docker/goapps/telegram.json")  // for docker
-	b, err := ioutil.ReadFile("./telegram.json")
-	if err != nil {
-		fmt.Println("Telegram infofile reading failure")
-		fmt.Println(err)
-		return
-	}
+	os := runtime.GOOS
 	conf := new(teleInfo) // new 로 만들면 포인터
-	json.Unmarshal(b, &conf)
+	switch os {
+	case "windows":
+		fmt.Println("Windows")
+		b, err := ioutil.ReadFile("./telegram.json")
+		if err != nil {
+			fmt.Println("Telegram infofile reading failure")
+			fmt.Println(err)
+			return
+		}
+		json.Unmarshal(b, &conf)
+	case "darwin":
+		fmt.Println("MAC operating system")
+	case "linux":
+		fmt.Println("Linux")
+		b, err := ioutil.ReadFile("/docker/goapps/telegram.json") // for docker
+		if err != nil {
+			fmt.Println("Telegram infofile reading failure")
+			fmt.Println(err)
+			return
+		}
+		json.Unmarshal(b, &conf)
+	default:
+		fmt.Printf("%s.\n", os)
+	}
 
 	bot, err := tgbotapi.NewBotAPI(conf.Token)
 	if err != nil {
