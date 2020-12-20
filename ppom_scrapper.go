@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
@@ -111,17 +112,29 @@ func getPrices(url string, fn string, argCpm float32, c chan bool) {
 		fmt.Println(err)
 		c <- false
 	}
-	fmt.Println(string(b), len(b))
+	fmt.Println("File info = ", string(b), len(b), reflect.TypeOf(b))
+
+	js := new(products) // new 로 만들면 포인터
 
 	if len(b) < 5 {
 		fmt.Println("Null file read")
+
+		// Null filehandling
+		newGen := []byte("{}")
+		fmt.Printf("%+v\n", js)
+		json.Unmarshal(newGen, &js)
+		fmt.Println("JSON File = ", js)
 		// panic("errrrrrr")
+	} else {
+
+		fmt.Printf("%+v\n", js)
+		json.Unmarshal(b, &js)
+		fmt.Println("JSON File = ", js)
 	}
 
-	js := new(products) // new 로 만들면 포인터
 	// js := make([]products, 1)
 	// js := []products{}
-	// js := make(map[string]interface{})  // 이건 되는데 인덱싱이 안됨.
+	// js := make(map[string]interface{}, 20) // 이건 되는데 인덱싱이 안됨.
 
 	fmt.Printf("%+v\n", js)
 	json.Unmarshal(b, &js)
@@ -383,26 +396,6 @@ func teleSend(url string, id string, v ProductInfo) {
 	fmt.Println(updates)
 	msg := tgbotapi.NewMessage(conf.Uid, txt)
 	bot.Send(msg)
-}
-
-func getPages(url string) string {
-
-	itemStatus := ""
-
-	res, err := http.Get(url)
-	checkErr(err)
-	checkCode(res)
-
-	defer res.Body.Close()
-
-	doc, err := goquery.NewDocumentFromReader(res.Body)
-	checkErr(err)
-
-	doc.Find(".b_product_info_price").Each(func(i int, s *goquery.Selection) {
-		itemStatus = CleanString(s.Text())
-	})
-	return itemStatus
-
 }
 
 func checkErr(err error) {
