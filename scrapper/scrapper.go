@@ -25,6 +25,8 @@ func Scrape(term string) {
 	var baseURL string = "https://kr.indeed.com/취업?q=" + term + "&limit=50"
 	var jobs []extractedJob
 	c := make(chan []extractedJob)
+	fmt.Println("getPages called")
+
 	pages := getPages(baseURL)
 	fmt.Println("Total Pages = ", pages)
 
@@ -138,6 +140,7 @@ func checkErr(err error) {
 
 func checkCode(res *http.Response) {
 	if res.StatusCode != 200 {
+		log.Fatalln("Result is", res.StatusCode)
 		log.Fatalln("Result is not 200")
 	}
 }
